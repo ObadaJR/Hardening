@@ -1,0 +1,43 @@
+name: CI/CD for DSC
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
+          Install-Module -Name Pester -Force -Scope CurrentUser
+
+      - name: Lint DSC scripts
+        run: |
+          Invoke-ScriptAnalyzer -Path ./DSC
+
+      - name: Run Pester tests
+        run: |
+          Invoke-Pester -Path ./Tests
+
+      - name: Compile DSC MOF files
+        run: |
+          Start-DscConfiguration -Path ./DSC -OutputPath ./MOF
+
+  deploy:
+    runs-on: windows-latest
+    needs: build
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Deploy DSC MOF files
+        run: |
+          Copy-Item -Path ./MOF/*.mof -Destination '\\YourServer\DSCConfigurations'
